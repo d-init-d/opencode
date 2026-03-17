@@ -48,6 +48,60 @@ You can customize the base URL for any provider by setting the `baseURL` option.
 
 ---
 
+### CLIProxyAPI
+
+OpenCode includes **CLIProxyAPI** as a built-in provider for GPT and Codex-style models.
+
+1. Start your local CLIProxyAPI service, or copy the hosted endpoint you want to use.
+
+2. Run the `/connect` command and search for **CLIProxyAPI**.
+
+   ```txt
+   /connect
+   ```
+
+3. Enter the endpoint you want OpenCode to use.
+
+   ```txt
+   ┌ CLIProxyAPI endpoint
+   │ http://127.0.0.1:8320/v1
+   └ enter
+   ```
+
+4. Enter your CLIProxyAPI API key.
+
+   ```txt
+   ┌ API key
+   │
+   │
+   └ enter
+   ```
+
+5. Run `/models` and pick one of the available GPT or Codex models.
+
+   ```txt
+   /models
+   ```
+
+If you want to set or change the endpoint manually, add it to your config:
+
+```json title="opencode.json"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "cliproxyapi": {
+      "options": {
+        "baseURL": "http://127.0.0.1:8320/v1"
+      }
+    }
+  }
+}
+```
+
+Re-running `/connect` for CLIProxyAPI updates both the stored API key and the configured endpoint.
+
+---
+
 ## OpenCode Zen
 
 OpenCode Zen is a list of models provided by the OpenCode team that have been
@@ -1221,6 +1275,10 @@ To use Kimi K2 from Moonshot AI:
 ### Ollama
 
 You can configure opencode to use local models through Ollama.
+
+:::tip
+Ollama can automatically configure itself for OpenCode. See the [Ollama integration docs](https://docs.ollama.com/integrations/opencode) for details.
+:::
 
 ```json title="opencode.json" "ollama" {5, 6, 8, 10-14}
 {
