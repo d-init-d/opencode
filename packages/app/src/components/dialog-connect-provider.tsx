@@ -21,6 +21,8 @@ import { usePlatform } from "@/context/platform"
 import { DialogSelectModel } from "./dialog-select-model"
 import { DialogSelectProvider } from "./dialog-select-provider"
 
+const CLIPROXYAPI_ENDPOINT = "http://127.0.0.1:8320/v1"
+
 export function DialogConnectProvider(props: { provider: string }) {
   const dialog = useDialog()
   const globalSync = useGlobalSync()
@@ -234,9 +236,16 @@ export function DialogConnectProvider(props: { provider: string }) {
             </Match>
             <Match when={method()?.type === "api"}>
               {iife(() => {
+                const isCLIProxyAPI = props.provider === "cliproxyapi"
+                const endpoint =
+                  globalSync.data.config.provider?.[props.provider]?.options?.baseURL ??
+                  provider().api ??
+                  CLIPROXYAPI_ENDPOINT
                 const [formStore, setFormStore] = createStore({
                   value: "",
+                  endpoint,
                   error: undefined as string | undefined,
+                  endpointError: undefined as string | undefined,
                 })
 
                 async function handleSubmit(e: SubmitEvent) {
@@ -245,6 +254,18 @@ export function DialogConnectProvider(props: { provider: string }) {
                   const form = e.currentTarget as HTMLFormElement
                   const formData = new FormData(form)
                   const apiKey = formData.get("apiKey") as string
+                  const endpoint = formData.get("baseURL") as string
+
+                  if (isCLIProxyAPI) {
+                    if (!endpoint?.trim()) {
+                      setFormStore("endpointError", language.t("provider.custom.error.baseURL.required"))
+                      return
+                    }
+                    if (!endpoint.match(/^https?:\/\//)) {
+                      setFormStore("endpointError", language.t("provider.custom.error.baseURL.format"))
+                      return
+                    }
+                  }
 
                   if (!apiKey?.trim()) {
                     setFormStore("error", language.t("provider.connect.apiKey.required"))
@@ -252,6 +273,7 @@ export function DialogConnectProvider(props: { provider: string }) {
                   }
 
                   setFormStore("error", undefined)
+                  setFormStore("endpointError", undefined)
                   await globalSDK.client.auth.set({
                     providerID: props.provider,
                     auth: {
@@ -259,6 +281,25 @@ export function DialogConnectProvider(props: { provider: string }) {
                       key: apiKey,
                     },
                   })
+
+                  if (isCLIProxyAPI) {
+                    const disabled = globalSync.data.config.disabled_providers ?? []
+                    await globalSync.updateConfig({
+                      provider: {
+                        [props.provider]: {
+                          options: {
+                            baseURL: endpoint.trim(),
+                          },
+                        },
+                      },
+                      ...(disabled.includes(props.provider)
+                        ? {
+                            disabled_providers: disabled.filter((item) => item !== props.provider),
+                          }
+                        : {}),
+                    })
+                  }
+
                   await complete()
                 }
 
@@ -289,8 +330,20 @@ export function DialogConnectProvider(props: { provider: string }) {
                       </Match>
                     </Switch>
                     <form onSubmit={handleSubmit} class="flex flex-col items-start gap-4">
+                      <Show when={isCLIProxyAPI}>
+                        <TextField
+                          autofocus
+                          type="text"
+                          label={language.t("provider.custom.field.baseURL.label")}
+                          placeholder={language.t("provider.custom.field.baseURL.placeholder")}
+                          name="baseURL"
+                          value={formStore.endpoint}
+                          onChange={setFormStore.bind(null, "endpoint")}
+                          validationState={formStore.endpointError ? "invalid" : undefined}
+                          error={formStore.endpointError}
+                        />
+                      </Show>
                       <TextField
-                        autofocus
                         type="text"
                         label={language.t("provider.connect.apiKey.label", { provider: provider().name })}
                         placeholder={language.t("provider.connect.apiKey.placeholder")}

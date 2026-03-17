@@ -14,6 +14,8 @@ import { useKeyboard } from "@opentui/solid"
 import { Clipboard } from "@tui/util/clipboard"
 import { useToast } from "../ui/toast"
 
+const CLIPROXYAPI_ENDPOINT = "http://127.0.0.1:8320/v1"
+
 const PROVIDER_PRIORITY: Record<string, number> = {
   opencode: 0,
   anthropic: 1,
@@ -97,6 +99,9 @@ export function createDialogProviderOptions() {
               }
             }
             if (method.type === "api") {
+              if (provider.id === "cliproxyapi") {
+                return dialog.replace(() => <CLIProxyAPIEndpointMethod providerID={provider.id} />)
+              }
               return dialog.replace(() => <ApiMethod providerID={provider.id} title={method.label} />)
             }
           },
@@ -112,6 +117,106 @@ export function DialogProvider() {
   return <DialogSelect title="Connect a provider" options={options()} />
 }
 
+function CLIProxyAPIEndpointMethod(props: { providerID: string }) {
+  const dialog = useDialog()
+  const sync = useSync()
+  const { theme } = useTheme()
+  const [error, setError] = createSignal<string>()
+
+  const value =
+    sync.data.config.provider?.[props.providerID]?.options?.baseURL ??
+    sync.data.provider_next.all.find((item) => item.id === props.providerID)?.api ??
+    CLIPROXYAPI_ENDPOINT
+
+  return (
+    <DialogPrompt
+      title="CLIProxyAPI endpoint"
+      value={value}
+      placeholder={CLIPROXYAPI_ENDPOINT}
+      onConfirm={(input) => {
+        const endpoint = input.trim()
+        if (!endpoint) {
+          setError("Endpoint is required")
+          return
+        }
+        if (!endpoint.match(/^https?:\/\//)) {
+          setError("Endpoint must start with http:// or https://")
+          return
+        }
+        dialog.replace(() => <CLIProxyAPIKeyMethod providerID={props.providerID} endpoint={endpoint} />)
+      }}
+      description={() => (
+        <box gap={1}>
+          <text fg={theme.textMuted}>Enter the CLIProxyAPI endpoint you want OpenCode to use.</text>
+          <text fg={theme.textMuted}>Default local proxy: {CLIPROXYAPI_ENDPOINT}</text>
+          <Show when={error()}>
+            <text fg={theme.error}>{error()}</text>
+          </Show>
+        </box>
+      )}
+    />
+  )
+}
+
+function CLIProxyAPIKeyMethod(props: { providerID: string; endpoint: string }) {
+  const dialog = useDialog()
+  const sdk = useSDK()
+  const sync = useSync()
+  const { theme } = useTheme()
+  const [error, setError] = createSignal<string>()
+
+  return (
+    <DialogPrompt
+      title="CLIProxyAPI API key"
+      placeholder="API key"
+      onConfirm={async (value) => {
+        const key = value.trim()
+        if (!key) {
+          setError("API key is required")
+          return
+        }
+        const disabled = sync.data.config.disabled_providers ?? []
+        await Promise.all([
+          sdk.client.auth.set({
+            providerID: props.providerID,
+            auth: {
+              type: "api",
+              key,
+            },
+          }),
+          sdk.client.global.config.update({
+            config: {
+              provider: {
+                [props.providerID]: {
+                  options: {
+                    baseURL: props.endpoint,
+                  },
+                },
+              },
+              ...(disabled.includes(props.providerID)
+                ? {
+                    disabled_providers: disabled.filter((item) => item !== props.providerID),
+                  }
+                : {}),
+            },
+          }),
+        ])
+        await sdk.client.instance.dispose()
+        await sync.bootstrap()
+        dialog.replace(() => <DialogModel providerID={props.providerID} />)
+      }}
+      description={() => (
+        <box gap={1}>
+          <text fg={theme.textMuted}>Endpoint: {props.endpoint}</text>
+          <Show when={error()}>
+            <text fg={theme.error}>{error()}</text>
+          </Show>
+        </box>
+      )}
+    />
+  )
+}
+
 interface AutoMethodProps {
   index: number
   providerID: string
@@ -124,6 +229,7 @@ function AutoMethod(props: AutoMethodProps) {
   const dialog = useDialog()
   const sync = useSync()
   const toast = useToast()
+  const [hover, setHover] = createSignal(false)
 
   useKeyboard((evt) => {
     if (evt.name === "c" && !evt.ctrl && !evt.meta) {
@@ -154,7 +260,16 @@ function AutoMethod(props: AutoMethodProps) {
         <text attributes={TextAttributes.BOLD} fg={theme.text}>
           {props.title}
         </text>
-        <text fg={theme.textMuted}>esc</text>
+        <box
+          paddingLeft={1}
+          paddingRight={1}
+          backgroundColor={hover() ? theme.primary : undefined}
+          onMouseOver={() => setHover(true)}
+          onMouseOut={() => setHover(false)}
+          onMouseUp={() => dialog.clear()}
+        >
+          <text fg={hover() ? theme.selectedListItemText : theme.textMuted}>esc</text>
+        </box>
       </box>
       <box gap={1}>
         <Link href={props.authorization.url} fg={theme.primary} />

@@ -13,6 +13,7 @@ import { Instance } from "../../project/instance"
 import type { Hooks } from "@opencode-ai/plugin"
 
 type PluginAuth = NonNullable<Hooks["auth"]>
+const CLIPROXYAPI_ENDPOINT = "http://127.0.0.1:8320/v1"
 
 /**
  * Handle plugin-based authentication flow.
@@ -307,7 +308,7 @@ export const AuthLoginCommand = cmd({
 
         if (prompts.isCancel(provider)) throw new UI.CancelledError()
 
-        const plugin = await Plugin.list().then((x) => x.find((x) => x.auth?.provider === provider))
+        const plugin = await Plugin.list().then((x) => x.findLast((x) => x.auth?.provider === provider))
         if (plugin && plugin.auth) {
           const handled = await handlePluginAuth({ auth: plugin.auth }, provider)
           if (handled) return
@@ -323,7 +324,7 @@ export const AuthLoginCommand = cmd({
           if (prompts.isCancel(provider)) throw new UI.CancelledError()
 
           // Check if a plugin provides auth for this custom provider
-          const customPlugin = await Plugin.list().then((x) => x.find((x) => x.auth?.provider === provider))
+          const customPlugin = await Plugin.list().then((x) => x.findLast((x) => x.auth?.provider === provider))
           if (customPlugin && customPlugin.auth) {
             const handled = await handlePluginAuth({ auth: customPlugin.auth }, provider)
             if (handled) return
@@ -346,6 +347,51 @@ export const AuthLoginCommand = cmd({
 
         if (provider === "opencode") {
           prompts.log.info("Create an api key at https://opencode.ai/auth")
+        }
+
+        if (provider === "cliproxyapi") {
+          const global = await Config.getGlobal()
+          const endpoint = await prompts.text({
+            message: "Enter your CLIProxyAPI endpoint",
+            placeholder: CLIPROXYAPI_ENDPOINT,
+            initialValue: global.provider?.cliproxyapi?.options?.baseURL ?? CLIPROXYAPI_ENDPOINT,
+            validate: (x) => {
+              if (!x || x.length === 0) return "Required"
+              if (!x.match(/^https?:\/\//)) return "Must start with http:// or https://"
+            },
+          })
+          if (prompts.isCancel(endpoint)) throw new UI.CancelledError()
+
+          const key = await prompts.password({
+            message: "Enter your API key",
+            validate: (x) => (x && x.length > 0 ? undefined : "Required"),
+          })
+          if (prompts.isCancel(key)) throw new UI.CancelledError()
+
+          const disabled = global.disabled_providers ?? []
+          await Promise.all([
+            Auth.set(provider, {
+              type: "api",
+              key,
+            }),
+            Config.updateGlobal({
+              provider: {
+                cliproxyapi: {
+                  options: {
+                    baseURL: endpoint,
+                  },
+                },
+              },
+              ...(disabled.includes("cliproxyapi")
+                ? {
+                    disabled_providers: disabled.filter((item) => item !== "cliproxyapi"),
+                  }
+                : {}),
+            }),
+          ])
+
+          prompts.outro("Done")
+          return
         }
 
         if (provider === "vercel") {
