@@ -64,6 +64,7 @@ export const iconNames = [
   "cohere",
   "cloudflare-workers-ai",
   "cloudflare-ai-gateway",
+  "cliproxyapi",
   "chutes",
   "cerebras",
   "baseten",

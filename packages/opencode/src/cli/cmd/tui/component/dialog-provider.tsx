@@ -21,7 +21,8 @@ const PROVIDER_PRIORITY: Record<string, number> = {
   anthropic: 1,
   "github-copilot": 2,
   openai: 3,
-  google: 4,
+  cliproxyapi: 4,
+  google: 5,
 }
 
 export function createDialogProviderOptions() {
@@ -42,6 +43,7 @@ export function createDialogProviderOptions() {
             opencode: "(Recommended)",
             anthropic: "(Claude Max or API key)",
             openai: "(ChatGPT Plus/Pro or API key)",
+            cliproxyapi: "(Endpoint + API key)",
           }[provider.id],
           category: provider.id in PROVIDER_PRIORITY ? "Popular" : "Other",
           footer: isConnected ? "Connected" : undefined,

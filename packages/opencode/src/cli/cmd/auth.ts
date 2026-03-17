@@ -274,9 +274,10 @@ export const AuthLoginCommand = cmd({
           anthropic: 1,
           "github-copilot": 2,
           openai: 3,
-          google: 4,
-          openrouter: 5,
-          vercel: 6,
+          cliproxyapi: 4,
+          google: 5,
+          openrouter: 6,
+          vercel: 7,
         }
         let provider = await prompts.autocomplete({
           message: "Select provider",
@@ -296,6 +297,7 @@ export const AuthLoginCommand = cmd({
                   opencode: "recommended",
                   anthropic: "Claude Max or API key",
                   openai: "ChatGPT Plus/Pro or API key",
+                  cliproxyapi: "Endpoint + API key",
                 }[x.id],
               })),
             ),

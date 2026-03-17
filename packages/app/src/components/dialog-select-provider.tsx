@@ -76,6 +76,9 @@ export const DialogSelectProvider: Component = () => {
             <Show when={i.id === "openai"}>
               <div class="text-14-regular text-text-weak">{language.t("dialog.provider.openai.note")}</div>
             </Show>
+            <Show when={i.id === "cliproxyapi"}>
+              <div class="text-14-regular text-text-weak">Configurable endpoint for your CLIProxyAPI proxy</div>
+            </Show>
             <Show when={i.id.startsWith("github-copilot")}>
               <div class="text-14-regular text-text-weak">{language.t("dialog.provider.copilot.note")}</div>
             </Show>
