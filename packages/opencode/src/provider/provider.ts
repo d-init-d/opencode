@@ -37,6 +37,7 @@ import { createPerplexity } from "@ai-sdk/perplexity"
 import { createVercel } from "@ai-sdk/vercel"
 import { createGitLab } from "@gitlab/gitlab-ai-provider"
 import { ProviderTransform } from "./transform"
+import { responsesLoader } from "./loaders"
 
 export namespace Provider {
   const log = Log.create({ service: "provider" })
@@ -119,15 +120,8 @@ export namespace Provider {
         options: hasKey ? {} : { apiKey: "public" },
       }
     },
-    openai: async () => {
-      return {
-        autoload: false,
-        async getModel(sdk: any, modelID: string, _options?: Record<string, any>) {
-          return sdk.responses(modelID)
-        },
-        options: {},
-      }
-    },
+    openai: responsesLoader,
+    cliproxyapi: responsesLoader,
     "github-copilot": async () => {
       return {
         autoload: false,

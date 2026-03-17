@@ -9,7 +9,13 @@ import { afterAll } from "bun:test"
 const dir = path.join(os.tmpdir(), "opencode-test-data-" + process.pid)
 await fs.mkdir(dir, { recursive: true })
 afterAll(() => {
-  fsSync.rmSync(dir, { recursive: true, force: true })
+  try {
+    fsSync.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EBUSY") {
+      throw error
+    }
+  }
 })
 // Set test home directory to isolate tests from user's actual home directory
 // This prevents tests from picking up real user configs/skills from ~/.claude/skills
@@ -47,6 +53,7 @@ delete process.env["DEEPSEEK_API_KEY"]
 delete process.env["FIREWORKS_API_KEY"]
 delete process.env["CEREBRAS_API_KEY"]
 delete process.env["SAMBANOVA_API_KEY"]
+delete process.env["CLIPROXYAPI_API_KEY"]
 
 // Now safe to import from src/
 const { Log } = await import("../src/util/log")

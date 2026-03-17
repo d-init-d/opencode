@@ -54,6 +54,32 @@ test("provider loaded from env variable", async () => {
   })
 })
 
+test("cliproxyapi provider is available as a built-in provider", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(
+        path.join(dir, "opencode.json"),
+        JSON.stringify({
+          $schema: "https://opencode.ai/config.json",
+        }),
+      )
+    },
+  })
+  await Instance.provide({
+    directory: tmp.path,
+    init: async () => {
+      Env.set("CLIPROXYAPI_API_KEY", "test-api-key")
+    },
+    fn: async () => {
+      const providers = await Provider.list()
+      expect(providers["cliproxyapi"]).toBeDefined()
+      expect(providers["cliproxyapi"].name).toBe("CLIProxyAPI")
+      expect(providers["cliproxyapi"].models["gpt-5-codex"]).toBeDefined()
+      expect(providers["cliproxyapi"].models["gpt-5-codex"].api.url).toBe("http://127.0.0.1:8320/v1")
+    },
+  })
+})
+
 test("provider loaded from config with apiKey option", async () => {
   await using tmp = await tmpdir({
     init: async (dir) => {
